@@ -1,17 +1,27 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from sqlalchemy.orm import Session
 from fastapi import Depends
-from repositories.user_repo import UserRepo
+from sqlalchemy.exc import IntegrityError
 from db import get_db
+from models import User
+from repositories.user_repo import UserRepo
 from schemas.user_shemas import UserSchema
 router = APIRouter()
 
+
 @router.post("/signup")
-def signup(db:Session = Depends(get_db)):
+def signup(user: UserSchema, db: Session = Depends(get_db)):
     user_repo = UserRepo(db)
-    user_repo.add_user()
-    return {"message": "User created"}
+    # Check if user already exists
+    existing_user = db.query(User).filter(User.email == user.email).first()
+    if existing_user:
+        raise HTTPException(status_code=400, detail="Email already registered")
+    
+    # Convert Pydantic schema to SQLAlchemy model
+    db_user = User(email=user.email, password=user.password)
+    user_repo.add_user(db_user)
+    return {"message": "User signed up successfully"}
 
 @router.post("/login")
 def login():
-    return {"message": "User logged in"}
+    return {"message": "User logged in successfully"}
